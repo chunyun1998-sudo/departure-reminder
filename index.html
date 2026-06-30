@@ -8,357 +8,382 @@
   <script>window._AMapSecurityConfig={securityJsCode:'4e06da3d2a94c027f7dab7439daafd79'}</script>
   <script src="https://webapi.amap.com/maps?v=2.0&key=ee9c5479bba440e9f1aeb9390e47f9b9"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
-      background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
-      min-height: 100vh; color: #1e293b;
-    }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .scroll-hide::-webkit-scrollbar { display: none; }
-    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    .glass {
-      background: rgba(255,255,255,0.85);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(226,232,240,0.6);
-      border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
-    }
-    .mode-card {
-      position: relative; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 6px; padding: 12px 8px; border-radius: 14px;
-      border: 2px solid #e2e8f0; background: #fff; cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .mode-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: translateY(-1px); }
-    .mode-card.selected { border-color: #6366f1; background: #eef2ff; box-shadow: 0 4px 16px rgba(99,102,241,0.15); }
-    .mode-card .check { position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
-      display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;
-      opacity:0;transform:scale(0.5);transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;
+      background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%); min-height:100vh; color:#1e293b; }
+    .glass { background:rgba(255,255,255,0.85); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      border:1px solid rgba(226,232,240,0.6); border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.03); }
+    .mode-card { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:6px; padding:12px 8px; border-radius:14px; border:2px solid #e2e8f0; background:#fff; cursor:pointer; transition:all 0.2s ease; }
+    .mode-card:hover { border-color:#cbd5e1; box-shadow:0 4px 12px rgba(0,0,0,0.06); transform:translateY(-1px); }
+    .mode-card.selected { border-color:#6366f1; background:#eef2ff; box-shadow:0 4px 16px rgba(99,102,241,0.15); }
+    .mode-card .check { position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;opacity:0;transform:scale(0.5);transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); }
     .mode-card.selected .check { opacity:1; transform:scale(1); }
-    #map-container { width:100%; height:320px; border-radius:16px; overflow:hidden; border:1px solid #e2e8f0; }
-    @media (max-width:640px) { #map-container { height:260px; } }
+    #map-container { width:100%; height:280px; border-radius:16px; overflow:hidden; border:1px solid #e2e8f0; }
+    @media (min-width:640px) { #map-container { height:320px; } }
     input[type="range"] { -webkit-appearance:none;appearance:none;width:100%;height:6px;background:#e2e8f0;border-radius:3px;outline:none;cursor:pointer; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none;width:20px;height:20px;background:#6366f1;border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(99,102,241,0.3);transition:transform 0.15s; }
     input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
     input[type="range"]::-moz-range-thumb { width:20px;height:20px;background:#6366f1;border-radius:50%;border:none;cursor:pointer;box-shadow:0 2px 6px rgba(99,102,241,0.3); }
     select { width:100%;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;font-weight:600;color:#334155;outline:none;transition:all 0.2s; }
     select:focus { border-color:#818cf8;box-shadow:0 0 0 3px rgba(129,140,248,0.15); }
-    @keyframes slideUp {from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeIn {from{opacity:0}to{opacity:1}}
-    @keyframes spin {to{transform:rotate(360deg)}}
-    @keyframes pulseRing {0%{box-shadow:0 0 0 0 rgba(99,102,241,0.35)}70%{box-shadow:0 0 0 14px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
-    .slide-up {animation:slideUp 0.45s ease-out both}
-    .fade-in {animation:fadeIn 0.3s ease-out both}
-    .spin {animation:spin 0.7s linear infinite}
-    .pulse-ring {animation:pulseRing 2s infinite}
-    .lct-btn {transition:all 0.2s;}
+    @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    @keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(99,102,241,0.35)} 70%{box-shadow:0 0 0 14px rgba(99,102,241,0)} 100%{box-shadow:0 0 0 0 rgba(99,102,241,0)} }
+    .slide-up { animation:slideUp 0.45s ease-out both; }
+    .fade-in { animation:fadeIn 0.3s ease-out both; }
+    .spin { animation:spin 0.7s linear infinite; }
+    .pulse-ring { animation:pulseRing 2s infinite; }
+    .scroll-hide::-webkit-scrollbar { display:none; }
+    .scroll-hide { -ms-overflow-style:none; scrollbar-width:none; }
   </style>
 </head>
 <body>
-
-<!-- ===== 主容器 ===== -->
 <div id="app" class="max-w-lg mx-auto px-4 py-6 pb-28"></div>
 
 <script>
 // ============================================================
-//  CONSTANTS & STATE
+//  CONSTANTS
 // ============================================================
-const TRANSPORT = {
-  walking:{label:'步行',icon:'🚶',color:'#10b981'}, cycling:{label:'骑行',icon:'🚲',color:'#f59e0b'},
-  transit:{label:'公交地铁',icon:'🚇',color:'#3b82f6'}, driving:{label:'驾车',icon:'🚗',color:'#8b5cf6'},
-  taxi:{label:'打车',icon:'🚕',color:'#ef4444'},
-};
-const SAVED_PLACES = [
-  {name:'🏠 家',addr:'望京'},{name:'🏢 公司',addr:'国贸'},{name:'🎒 学校',addr:'中关村'},
-  {name:'🏛️ 天安门',addr:'天安门'},{name:'🛍️ 西单',addr:'西单'},
-];
-const KNOWN = { '望京':[116.4774,39.9925], '中关村':[116.3103,39.9814], '西单':[116.3746,39.9087], '天安门':[116.3976,39.9054], '国贸':[116.4605,39.9087] };
-const st = {
-  map:null,mapOk:false, pos:null, dest:[], destPos:null,
-  arrival:(()=>{const d=new Date();return `${((d.getHours()+1)%24+'').padStart(2,'0')}:00`})(),
-  buf:10, routes:[], selMode:null, calc:false, done:false,
+const T = { walking:{l:'步行',i:'🚶',c:'#10b981'}, cycling:{l:'骑行',i:'🚲',c:'#f59e0b'},
+  transit:{l:'公交地铁',i:'🚇',c:'#3b82f6'}, driving:{l:'驾车',i:'🚗',c:'#8b5cf6'}, taxi:{l:'打车',i:'🚕',c:'#ef4444'} };
+const SAVED = [ {n:'🏠 家',v:'望京'},{n:'🏢 公司',v:'国贸'},{n:'🎒 学校',v:'中关村'},{n:'🏛️ 天安门',v:'天安门'},{n:'🛍️ 西单',v:'西单'} ];
+const KNOWN = { '望京':[116.4774,39.9925],'中关村':[116.3103,39.9814],'西单':[116.3746,39.9087],'天安门':[116.3976,39.9054],'国贸':[116.4605,39.9087] };
+const DEFAULT_LOC = [116.4715,39.9087]; // 国贸
+
+// ============================================================
+//  STATE
+// ============================================================
+const S = {
+  map:null, mapOk:false,
+  from:[], fromLngLat:[], fromName:'我的位置',
+  to:[], toLngLat:[], toName:'',
+  arrival:'', buf:10,
+  routes:[], selMode:null, calc:false, gotRoutes:false,
   remind:false, cd:null, markers:[], polylines:[],
-  ac:null, ps:null, suggests:[], searchVal:'',
+  ac:null, ps:null,
 };
+S.arrival = (()=>{const d=new Date();return `${((d.getHours()+1)%24+'').padStart(2,'0')}:00`})();
 
 // ============================================================
 //  HELPERS
 // ============================================================
-function depTime(arrival,buf,dur) {
-  const [ah,am]=arrival.split(':').map(Number);
-  const h=((ah*60+am-buf-dur)%1440+1440)%1440;
-  return `${(Math.floor(h/60)+'').padStart(2,'0')}:${(h%60+'').padStart(2,'0')}`;
-}
+function depTime(a,b,d) { const [ah,am]=a.split(':').map(Number); const h=((ah*60+am-b-d)%1440+1440)%1440; return `${(Math.floor(h/60)+'').padStart(2,'0')}:${(h%60+'').padStart(2,'0')}`; }
 function late(t) { const n=new Date(),[h,m]=t.split(':').map(Number); return n.getHours()*60+n.getMinutes()>h*60+m; }
+
+// ============================================================
+//  MOCK FALLBACK (当高德路线API不可用时)
+// ============================================================
+function mockRoutes() {
+  if (!S.fromLngLat.length||!S.toLngLat.length) return [];
+  const dLat=S.toLngLat[1]-S.fromLngLat[1], dLng=S.toLngLat[0]-S.fromLngLat[0];
+  const dist=Math.sqrt(dLat*dLat+dLng*dLng)*111000;
+  const res=[];
+  const wd=dist*1.3; if (wd<15000) res.push({m:'walking',dur:Math.round(wd/5000*60),dist:Math.round(wd),path:[],d:(wd/1000).toFixed(1)+'km'});
+  const bd=dist*1.2; if (bd<30000) res.push({m:'cycling',dur:Math.round(bd/15000*60),dist:Math.round(bd),path:[],d:(bd/1000).toFixed(1)+'km'});
+  res.push({m:'transit',dur:Math.round(dist/25000*60+8),dist:Math.round(dist*1.4),path:[],d:(dist*1.4/1000).toFixed(1)+'km 公交'});
+  res.push({m:'driving',dur:Math.round(dist/30000*60),dist:Math.round(dist*1.1),path:[],d:(dist*1.1/1000).toFixed(1)+'km',cost:0});
+  res.push({m:'taxi',dur:Math.round(dist/30000*60),dist:Math.round(dist*1.1),path:[],d:'¥'+Math.round(dist/1000*2.5+14),cost:Math.round(dist/1000*2.5+14)});
+  return res.sort((a,b)=>a.dur-b.dur);
+}
 
 // ============================================================
 //  MAP
 // ============================================================
 function initMap() {
-  st.map = new AMap.Map('map-container',{zoom:13,center:[116.397428,39.90923],mapStyle:'amap://styles/light'});
-  // 定位：优先用浏览器API，不行再让用户点按钮
-  const locBtn = document.getElementById('loc-btn');
-  function doLoc() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(p=>{
-        st.pos={lat:p.coords.latitude,lng:p.coords.longitude};
-        st.map.setCenter([p.coords.longitude,p.coords.latitude]);
-        st.mapOk=true; updateUI();
-      },()=>{ st.pos={lat:39.9087,lng:116.4715}; st.mapOk=true; updateUI(); },{timeout:8000,enableHighAccuracy:false});
-    } else { st.pos={lat:39.9087,lng:116.4715}; st.mapOk=true; updateUI(); }
-  }
-  // 页面加载后立即尝试定位
+  S.map = new AMap.Map('map-container',{zoom:13,center:DEFAULT_LOC,mapStyle:'amap://styles/light'});
   doLoc();
-  // 定位按钮
-  if(locBtn) locBtn.onclick=doLoc;
-
   AMap.plugin(['AMap.AutoComplete','AMap.PlaceSearch','AMap.Walking','AMap.Riding','AMap.Driving','AMap.Transfer'],()=>{
-    st.ac=new AMap.AutoComplete({city:'北京'});
-    st.ps=new AMap.PlaceSearch({city:'北京',pageSize:10});
+    S.ac=new AMap.AutoComplete({city:'北京'});
+    S.ps=new AMap.PlaceSearch({city:'北京',pageSize:10});
   });
+}
+
+function doLoc() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p=>{
+      S.from=[p.coords.latitude,p.coords.longitude];
+      S.fromLngLat=[p.coords.longitude,p.coords.latitude];
+      S.map.setCenter(S.fromLngLat);
+      S.mapOk=true; upd();
+    },()=>{ fallbackLoc(); },{timeout:8000,enableHighAccuracy:false});
+  } else { fallbackLoc(); }
+  setTimeout(()=>{ if (!S.mapOk) fallbackLoc(); }, 10000);
+}
+
+function fallbackLoc() {
+  if (S.mapOk) return;
+  S.from=[39.9087,116.4715]; S.fromLngLat=[116.4715,39.9087];
+  S.mapOk=true; upd();
 }
 
 function drawRoute() {
-  if (!st.map||!st.pos) return;
-  if (st.markers.length) st.map.remove(st.markers);
-  if (st.polylines.length) st.map.remove(st.polylines);
-  st.markers=[]; st.polylines=[];
-  const sm=new AMap.Marker({position:[st.pos.lng,st.pos.lat],
-    content:'<div style="background:#6366f1;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2)">起</div>',
-    offset:new AMap.Pixel(-14,-14)});
-  st.markers.push(sm); st.map.add(sm);
-  if (st.destPos) {
-    const em=new AMap.Marker({position:st.destPos,
+  if (!S.map) return;
+  if (S.markers.length) S.map.remove(S.markers);
+  if (S.polylines.length) S.map.remove(S.polylines);
+  S.markers=[]; S.polylines=[];
+  if (S.fromLngLat.length) {
+    const sm=new AMap.Marker({position:S.fromLngLat,
+      content:'<div style="background:#6366f1;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2)">起</div>',
+      offset:new AMap.Pixel(-14,-14)});
+    S.markers.push(sm); S.map.add(sm);
+  }
+  if (S.toLngLat.length) {
+    const em=new AMap.Marker({position:S.toLngLat,
       content:'<div style="background:#ef4444;color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2)">终</div>',
       offset:new AMap.Pixel(-14,-14)});
-    st.markers.push(em); st.map.add(em);
+    S.markers.push(em); S.map.add(em);
   }
-  const r=st.routes.find(x=>x.mode===st.selMode);
+  const r=S.routes.find(x=>x.mode===S.selMode);
   if (r?.path?.length) {
-    const pl=new AMap.Polyline({path:r.path,strokeColor:TRANSPORT[r.mode].color,strokeWeight:5,strokeOpacity:0.9,lineJoin:'round',lineCap:'round'});
-    st.polylines.push(pl); st.map.add(pl);
-    st.map.setFitView(st.markers.concat(st.polylines),false,[50,50,50,50]);
-  } else if (st.markers.length>=2) { st.map.setFitView(st.markers,false,[50,50,50,50]); }
+    const pl=new AMap.Polyline({path:r.path,strokeColor:T[r.mode].c,strokeWeight:5,strokeOpacity:0.9,lineJoin:'round',lineCap:'round'});
+    S.polylines.push(pl); S.map.add(pl);
+    S.map.setFitView(S.markers.concat(S.polylines),false,[50,50,50,50]);
+  } else if (S.markers.length>=2) { S.map.setFitView(S.markers,false,[50,50,50,50]); }
 }
 
 // ============================================================
-//  ROUTE CALC
+//  ROUTE CALC — 同时尝试高德API和mock，先到的先用
 // ============================================================
 function calcRoutes() {
-  if (!st.pos||!st.destPos) return;
-  st.calc=true; st.done=true; st.routes=[]; st.selMode=null; updateUI();
-  const start=[st.pos.lng,st.pos.lat], end=st.destPos, res=[]; let n=0;
-  const done=()=>{n++;if(n>=5){res.sort((a,b)=>a.dur-b.dur);st.routes=res;st.selMode=res[0]?.mode;st.calc=false;updateUI();drawRoute();}};
-  try{const w=new AMap.Walking({policy:AMap.WalkingPolicy.LEAST_TIME});w.search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({mode:'walking',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),detail:(rt.distance/1000).toFixed(1)+'km',cost:0});}done();});}catch(e){done();}
-  try{const w=new AMap.Riding({policy:AMap.RidingPolicy.LEAST_TIME});w.search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({mode:'cycling',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),detail:(rt.distance/1000).toFixed(1)+'km',cost:0});}done();});}catch(e){done();}
-  try{const w=new AMap.Transfer({policy:AMap.TransferPolicy.LEAST_TIME,city:'北京',cityd:'北京'});w.search(start,end,(s,r)=>{if(s==='complete'&&r.plans?.length){const p=r.plans[0];const path=[];p.segments.forEach(s=>{if(s.transit?.path)path.push(...s.transit.path);if(s.walking?.path)path.push(...s.walking.path);});res.push({mode:'transit',dur:Math.round(p.time/60),dist:p.distance,path,detail:(p.distance/1000).toFixed(1)+'km 公交',cost:0});}done();});}catch(e){done();}
-  try{const w=new AMap.Driving({policy:AMap.DrivingPolicy.LEAST_TIME,extensions:'all'});w.search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({mode:'driving',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),detail:(rt.distance/1000).toFixed(1)+'km',cost:rt.tolls?Math.round(rt.tolls):0});}done();});}catch(e){done();}
-  try{const w=new AMap.Driving({policy:AMap.DrivingPolicy.LEAST_TIME});w.search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];const c=Math.round(rt.distance/1000*2.5+14);res.push({mode:'taxi',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),detail:'¥'+c,cost:c});}done();});}catch(e){done();}
+  if (!S.fromLngLat.length||!S.toLngLat.length) return;
+  S.calc=true; S.gotRoutes=false; S.routes=[]; S.selMode=null; renderResults(); upd();
+
+  const start=S.fromLngLat, end=S.toLngLat;
+  let triedAPI=false;
+
+  // 尝试高德API
+  if (window.AMap && AMap.Walking) {
+    triedAPI=true;
+    const res=[]; let n=0;
+    const done=()=>{n++;if(n>=5){finishAPI(res);}};
+    const finishAPI=(r)=>{
+      if (r.length) { r.sort((a,b)=>a.dur-b.dur); S.routes=r; S.selMode=r[0].m; S.calc=false; S.gotRoutes=true; renderResults(); drawRoute(); }
+      else { tryMock(); }
+    };
+    try{new AMap.Walking({policy:AMap.WalkingPolicy.LEAST_TIME}).search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({m:'walking',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),d:(rt.distance/1000).toFixed(1)+'km'});}done();});}catch(e){done();}
+    try{new AMap.Riding({policy:AMap.RidingPolicy.LEAST_TIME}).search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({m:'cycling',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),d:(rt.distance/1000).toFixed(1)+'km'});}done();});}catch(e){done();}
+    try{new AMap.Transfer({policy:AMap.TransferPolicy.LEAST_TIME,city:'北京',cityd:'北京'}).search(start,end,(s,r)=>{if(s==='complete'&&r.plans?.length){const p=r.plans[0];const path=[];p.segments.forEach(s=>{if(s.transit?.path)path.push(...s.transit.path);if(s.walking?.path)path.push(...s.walking.path);});res.push({m:'transit',dur:Math.round(p.time/60),dist:p.distance,path,d:(p.distance/1000).toFixed(1)+'km 公交'});}done();});}catch(e){done();}
+    try{new AMap.Driving({policy:AMap.DrivingPolicy.LEAST_TIME,extensions:'all'}).search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];res.push({m:'driving',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),d:(rt.distance/1000).toFixed(1)+'km',cost:rt.tolls?Math.round(rt.tolls):0});}done();});}catch(e){done();}
+    try{new AMap.Driving({policy:AMap.DrivingPolicy.LEAST_TIME}).search(start,end,(s,r)=>{if(s==='complete'&&r.routes?.length){const rt=r.routes[0];const c=Math.round(rt.distance/1000*2.5+14);res.push({m:'taxi',dur:Math.round(rt.time/60),dist:rt.distance,path:rt.steps.flatMap(s=>s.path),d:'¥'+c,cost:c});}done();});}catch(e){done();}
+    // 8秒超时 -> fallback
+    setTimeout(()=>{if(S.calc){if(res.length){finishAPI(res);}else{tryMock();}}},8000);
+  } else {
+    tryMock();
+  }
+
+  function tryMock() {
+    if (S.gotRoutes) return;
+    const m=mockRoutes();
+    if (m.length) { S.routes=m; S.selMode=m[0].m; S.calc=false; S.gotRoutes=true; renderResults(); drawRoute(); }
+    else { S.calc=false; renderResults(); }
+  }
 }
 
-function searchDest(keyword) {
-  // 检查已知地点
+// ============================================================
+//  GEOCODE — 把地址转成坐标
+// ============================================================
+function geocodeAddr(keyword, cb) {
+  if (!keyword||keyword==='我的位置') { cb(S.fromLngLat.length?S.fromLngLat:DEFAULT_LOC); return; }
   for (const [k,v] of Object.entries(KNOWN)) {
-    if (keyword.includes(k)||k.includes(keyword)) { st.destPos=v;calcRoutes();return; }
+    if (keyword.includes(k)||k.includes(keyword)) { cb(v); return; }
   }
-  if (!st.ps) { st.destPos=[116.397428,39.90923]; calcRoutes(); return; }
-  st.ps.search(keyword,(s,r)=>{
-    if (s==='complete'&&r.poiList?.pois?.length) { const p=r.poiList.pois[0]; st.destPos=[p.location.lng,p.location.lat]; }
-    else { st.destPos=[116.397428,39.90923]; }
-    calcRoutes();
+  if (!S.ps) { cb(DEFAULT_LOC); return; }
+  S.ps.search(keyword,(s,r)=>{
+    if (s==='complete'&&r.poiList?.pois?.length) { const p=r.poiList.pois[0]; cb([p.location.lng,p.location.lat]); }
+    else { cb(DEFAULT_LOC); }
   });
 }
 
 // ============================================================
-//  RENDER — 只渲染动态结果区域
+//  START NEW SEARCH
+// ============================================================
+function startSearch(fromKw, toKw) {
+  geocodeAddr(fromKw, floc => {
+    S.fromLngLat=floc;
+    let fromAddr=fromKw;
+    if (fromKw==='我的位置'&&S.from.length) fromAddr='我的位置';
+    S.fromName=fromAddr;
+    geocodeAddr(toKw, tloc => {
+      S.toLngLat=tloc;
+      S.toName=toKw;
+      calcRoutes();
+    });
+  });
+}
+
+// ============================================================
+//  RENDER RESULTS
 // ============================================================
 function renderResults() {
   const el=document.getElementById('results');
   if (!el) return;
   let h='';
 
-  // 时间设置
-  if (st.done) {
+  if (S.gotRoutes) {
     const opts=[];
     for (let i=0;i<48;i++){const hh=Math.floor(i/2),mm=i%2===0?'00':'30';opts.push(`${(hh+'').padStart(2,'0')}:${mm}`);}
     h+=`<div class="grid grid-cols-2 gap-3 mb-3 slide-up">
       <div><label class="block text-xs font-medium text-slate-400 mb-1.5">⏰ 期望到达</label>
-        <select id="arrival-sel">${opts.map(t=>`<option value="${t}"${t===st.arrival?'selected':''}>${t}</option>`).join('')}</select></div>
+        <select id="as">${opts.map(t=>`<option value="${t}"${t===S.arrival?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label class="block text-xs font-medium text-slate-400 mb-1.5">⏱ 提前到达</label>
         <div class="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
-          <input type="range" id="buf-slider" min="0" max="30" step="5" value="${st.buf}" style="flex:1"/>
-          <span id="buf-label" class="text-sm font-semibold text-slate-700 min-w-[3rem] text-right tabular-nums">${st.buf>0?st.buf+'分':'准时'}</span></div></div></div>`;
+          <input type="range" id="bs" min="0" max="30" step="5" value="${S.buf}" style="flex:1"/>
+          <span id="bl" class="text-sm font-semibold text-slate-700 min-w-[3rem] text-right tabular-nums">${S.buf>0?S.buf+'分':'准时'}</span></div></div></div>`;
   }
 
-  // loading
-  if (st.calc) {
+  if (S.calc) {
     h+=`<div class="glass p-8 flex flex-col items-center gap-3 fade-in">
       <div class="w-9 h-9 border-[3px] border-indigo-500 border-t-transparent rounded-full spin"></div>
-      <p class="text-sm text-slate-400">正在调用高德地图计算路线...</p></div>`;
+      <p class="text-sm text-slate-400">正在计算路线...</p></div>`;
   }
 
-  // routes
-  if (st.done&&!st.calc&&st.routes.length) {
+  if (S.gotRoutes&&!S.calc&&S.routes.length) {
     h+=`<div class="mb-3 slide-up">
       <div class="flex items-center gap-2 mb-2.5">
         <h2 class="text-sm font-semibold text-slate-700">交通方式对比</h2>
         <span class="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full font-medium">按时间排序</span></div>
-      <div class="grid grid-cols-5 gap-1.5" id="mode-grid">`;
-    st.routes.forEach(r=>{
-      const t=TRANSPORT[r.mode], sel=st.selMode===r.mode;
-      h+=`<button data-mode="${r.mode}" class="mode-card${sel?' selected':''}"${sel?`style="border-color:${t.color};background:${t.color}10"`:''}>
-        <span class="check" style="background:${t.color}">✓</span>
-        <span class="text-2xl">${t.icon}</span>
+      <div class="grid grid-cols-5 gap-1.5" id="mg">`;
+    S.routes.forEach(r=>{
+      const t=T[r.m], sel=S.selMode===r.m;
+      h+=`<button data-m="${r.m}" class="mode-card${sel?' selected':''}"${sel?`style="border-color:${t.c};background:${t.c}10"`:''}>
+        <span class="check" style="background:${t.c}">✓</span><span class="text-2xl">${t.i}</span>
         <span class="text-[11px] font-bold text-slate-800 tabular-nums">${r.dur}<span class="text-[9px] font-normal text-slate-400">分钟</span></span>
-        <span class="text-[10px] text-slate-400">${t.label}</span></button>`;
+        <span class="text-[10px] text-slate-400">${t.l}</span></button>`;
     });
     h+=`</div></div>`;
 
-    const selR=st.routes.find(r=>r.mode===st.selMode);
-    if (selR) {
-      const t=TRANSPORT[selR.mode], ds=depTime(st.arrival,st.buf,selR.dur), isLate=late(ds);
-      h+=`<div class="mb-3 p-3.5 rounded-xl border bg-white fade-in" style="border-color:${t.color}40">
+    const sr=S.routes.find(r=>r.m===S.selMode);
+    if (sr) {
+      const t=T[sr.m], ds=depTime(S.arrival,S.buf,sr.dur), isLate=late(ds);
+      h+=`<div class="mb-3 p-3.5 rounded-xl border bg-white fade-in" style="border-color:${t.c}40">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2"><span class="text-xl">${t.icon}</span><span class="font-semibold text-slate-800">${t.label}</span></div>
-          <span class="text-sm text-slate-500">${selR.detail}</span></div></div>`;
+          <div class="flex items-center gap-2"><span class="text-xl">${t.i}</span><span class="font-semibold text-slate-800">${t.l}</span></div>
+          <span class="text-sm text-slate-500">${sr.d}</span></div></div>`;
       h+=`<div class="glass p-5 text-center border-2 slide-up ${isLate?'border-red-300 bg-red-50/50':'border-indigo-300 bg-indigo-50/50'}">`;
       if (isLate) {
         h+=`<div class="text-3xl mb-2">😱</div><p class="text-lg font-bold text-red-600">您已迟到！</p><p class="text-sm text-red-500 mt-1">建议 ${ds} 出发，已超过该时间</p>`;
       } else {
         h+=`<p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">建议出发时间</p>
-          <div class="flex items-center justify-center gap-3 mb-2">
-            <div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold pulse-ring" style="background:rgba(99,102,241,0.1);color:#4338ca">
-              <span class="text-2xl">⏰</span><span class="text-3xl tabular-nums tracking-tight">${ds}</span></div></div>
-          <div class="flex items-center justify-center gap-4 text-sm text-slate-500 mb-3">
-            <span>${t.icon} ${selR.dur}分钟</span><span>⏱ ${st.buf>0?'提前'+st.buf+'分钟':'准时'}到</span></div>`;
-        if (st.cd) h+=`<p class="text-sm font-medium text-indigo-600 mb-2">${st.cd}</p>`;
-        h+=`<button id="remind-btn" class="px-6 py-2.5 rounded-xl font-medium text-sm transition-all ${
-          st.remind?'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100':'bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm hover:shadow-md'}">${
-          st.remind?'🔕 取消提醒':'🔔 设置出发提醒'}</button>`;
+          <div class="flex items-center justify-center gap-3 mb-2"><div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold pulse-ring" style="background:rgba(99,102,241,0.1);color:#4338ca"><span class="text-2xl">⏰</span><span class="text-3xl tabular-nums tracking-tight">${ds}</span></div></div>
+          <div class="flex items-center justify-center gap-4 text-sm text-slate-500 mb-3"><span>${t.i} ${sr.dur}分钟</span><span>⏱ ${S.buf>0?'提前'+S.buf+'分钟':'准时'}到</span></div>`;
+        if (S.cd) h+=`<p class="text-sm font-medium text-indigo-600 mb-2">${S.cd}</p>`;
+        h+=`<button id="rb" class="px-6 py-2.5 rounded-xl font-medium text-sm transition-all ${S.remind?'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100':'bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm hover:shadow-md'}">${S.remind?'🔕 取消提醒':'🔔 设置出发提醒'}</button>`;
       }
       h+=`</div>`;
     }
   }
 
-  // empty
-  if (!st.done&&!st.calc) {
-    h+=`<div class="glass p-8 text-center fade-in">
-      <div class="text-5xl mb-4">🗺️</div>
-      <h2 class="text-lg font-semibold text-slate-700 mb-2">选择目的地开始规划</h2>
-      <p class="text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">输入目的地或从常用地点中选择<br/>高德地图将实时计算各交通方式的路线</p>
-      <div class="mt-4 flex justify-center gap-3 opacity-40">${['🚶','🚲','🚇','🚗','🚕'].map(i=>`<span class="text-2xl">${i}</span>`).join('')}</div></div>`;
+  if (!S.gotRoutes&&!S.calc&&S.toName) {
+    h+=`<div class="glass p-6 text-center fade-in"><p class="text-sm text-slate-500">暂无路线数据，请检查网络或更换目的地</p></div>`;
   }
 
   el.innerHTML = h;
-
-  // 绑定事件
-  const as=document.getElementById('arrival-sel');
-  if (as) as.onchange=function(){st.arrival=this.value;renderResults();};
-  const bs=document.getElementById('buf-slider');
-  if (bs) bs.oninput=function(){st.buf=+this.value;document.getElementById('buf-label').textContent=this.value>0?this.value+'分':'准时';renderResults();};
-  const mg=document.getElementById('mode-grid');
-  if (mg) mg.onclick=function(e){const btn=e.target.closest('[data-mode]');if(btn){st.selMode=btn.dataset.mode;renderResults();drawRoute();}};
-  const rb=document.getElementById('remind-btn');
-  if (rb) rb.onclick=function(){toggleRemind();};
+  // bind
+  const as=document.getElementById('as');if(as)as.onchange=function(){S.arrival=this.value;renderResults();};
+  const bs=document.getElementById('bs');if(bs)bs.oninput=function(){S.buf=+this.value;document.getElementById('bl').textContent=this.value>0?this.value+'分':'准时';renderResults();};
+  const mg=document.getElementById('mg');if(mg)mg.onclick=function(e){const btn=e.target.closest('[data-m]');if(btn){S.selMode=btn.dataset.m;renderResults();drawRoute();}};
+  const rb=document.getElementById('rb');if(rb)rb.onclick=toggleRemind;
 }
 
 // ============================================================
-//  ACTIONS
-// ============================================================
-function toggleRemind() {
-  st.remind=!st.remind;
-  if (st.remind&&st.selMode) {
-    if ('Notification' in window&&Notification.permission==='default') Notification.requestPermission();
-    if ('Notification' in window&&Notification.permission==='granted') {
-      const r=st.routes.find(x=>x.mode===st.selMode);
-      if (r) new Notification('⏰ 出发提醒已设置',{body:`建议 ${depTime(st.arrival,st.buf,r.dur)} 出发`});
-    }
-    countdown();
-  } else { st.cd=null; }
-  renderResults();
-}
-function countdown() {
-  if (!st.remind||!st.selMode) return;
-  const r=st.routes.find(x=>x.mode===st.selMode); if (!r) return;
-  const ds=depTime(st.arrival,st.buf,r.dur),n=new Date(),[h,m]=ds.split(':').map(Number);
-  const t=new Date();t.setHours(h,m,0,0);
-  if (t<=n){st.cd='⏰ 该出发了！';renderResults();return;}
-  st.cd=`还剩 ${Math.round((t-n)/60000)} 分钟出发`;renderResults();
-  setTimeout(countdown,10000);
-}
-
-// ============================================================
-//  SEARCH — 专用处理，不触发全量渲染
+//  SEARCH SETUP
 // ============================================================
 function setupSearch() {
-  const inp=document.getElementById('search-input');
-  const sug=document.getElementById('suggestions');
-  const wrap=document.getElementById('search-wrap');
-  if (!inp) return;
+  const fi=document.getElementById('from-input'), ti=document.getElementById('to-input');
+  const fs=document.getElementById('from-sug'), ts=document.getElementById('to-sug');
 
-  inp.oninput=function() {
-    const val=this.value; st.searchVal=val;
-    if (!val.trim()) { sug.innerHTML='';sug.classList.add('hidden');return; }
-    if (st.ac) {
-      st.ac.search(val,(s,r)=>{
-        if (s==='complete'&&r.tips?.length) {
-          sug.innerHTML=r.tips.slice(0,8).map(t=>
-            `<button class="sug-item w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700 border-b border-slate-100 last:border-0">
-              <span>📍</span><div><span class="font-medium">${t.name}</span>${t.address?`<span class="text-slate-400 text-xs ml-1">${t.address}</span>`:''}</div></button>`
-          ).join('');
-        } else {
-          sug.innerHTML=Object.keys(KNOWN).filter(k=>k.includes(val)).map(k=>
-            `<button class="sug-item w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700">
-              <span>📍</span><span class="font-medium">${k}</span></button>`
-          ).join('');
-        }
+  function bindInput(inp, sug, cb) {
+    if (!inp) return;
+    inp.oninput=function() {
+      const v=this.value;
+      if (!v.trim()) { sug.innerHTML='';sug.classList.add('hidden');return; }
+      if (S.ac) {
+        S.ac.search(v,(s,r)=>{
+          if (s==='complete'&&r.tips?.length) {
+            sug.innerHTML=r.tips.slice(0,8).map(t=>
+              `<button class="sg w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700 border-b border-slate-100 last:border-0">
+                <span>📍</span><div><span class="font-medium">${t.name}</span>${t.address?`<span class="text-slate-400 text-xs ml-1">${t.address}</span>`:''}</div></button>`
+            ).join('');
+          } else {
+            sug.innerHTML=Object.keys(KNOWN).filter(k=>k.includes(v)).map(k=>
+              `<button class="sg w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700"><span>📍</span><span class="font-medium">${k}</span></button>`
+            ).join('');
+          }
+          sug.classList.remove('hidden');
+          sug.querySelectorAll('.sg').forEach(b=>{b.onclick=()=>{cb(b.textContent.trim());sug.classList.add('hidden');};});
+        });
+      } else {
+        sug.innerHTML=Object.keys(KNOWN).filter(k=>k.includes(v)).map(k=>
+          `<button class="sg w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700"><span>📍</span><span class="font-medium">${k}</span></button>`
+        ).join('');
         sug.classList.remove('hidden');
-        // 绑定建议项点击
-        sug.querySelectorAll('.sug-item').forEach(b=>{b.onclick=()=>{pickDest(b.textContent.trim());};});
-      });
-    } else {
-      sug.innerHTML=Object.keys(KNOWN).filter(k=>k.includes(val)).map(k=>
-        `<button class="sug-item w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-indigo-50 text-slate-700">
-          <span>📍</span><span class="font-medium">${k}</span></button>`
-      ).join('');
-      sug.classList.remove('hidden');
-      sug.querySelectorAll('.sug-item').forEach(b=>{b.onclick=()=>{pickDest(b.textContent.trim());};});
-    }
+        sug.querySelectorAll('.sg').forEach(b=>{b.onclick=()=>{cb(b.textContent.trim());sug.classList.add('hidden');};});
+      }
+    };
+    inp.onfocus=function(){if(this.value.trim())this.oninput();};
+  }
+
+  bindInput(fi, fs, (v)=>{fi.value=v; if(S.toName) startSearch(v,S.toName);});
+  bindInput(ti, ts, (v)=>{ti.value=v; if(S.fromLngLat.length) startSearch(fi.value||'我的位置',v);});
+
+  // 搜索按钮
+  const btn=document.getElementById('go-btn');
+  if (btn) btn.onclick=function(){
+    const fv=fi.value||'我的位置', tv=ti.value;
+    if (!tv.trim()) { alert('请输入目的地'); return; }
+    startSearch(fv, tv);
   };
 
-  inp.onfocus=function(){if(this.value.trim())this.oninput();else{sug.classList.remove('hidden');}};
-  document.addEventListener('click',e=>{if(wrap&&!wrap.contains(e.target)){sug.classList.add('hidden');}});
-}
-
-function pickDest(keyword) {
-  const inp=document.getElementById('search-input');
-  const sug=document.getElementById('suggestions');
-  if (inp) inp.value=keyword;
-  st.searchVal=keyword; sug.classList.add('hidden');
-  // 从图片等文字中提取纯中文
-  const clean=keyword.replace(/[^a-zA-Z\u4e00-\u9fa5]/g,'');
-  searchDest(clean||keyword);
+  // 点击外部关闭
+  document.addEventListener('click',e=>{
+    [fs,ts].forEach(el=>{
+      if (el&&!el.parentElement.contains(e.target)) el.classList.add('hidden');
+    });
+  });
 }
 
 // ============================================================
-//  UI UPDATE — 更新静态部分的动态状态
+//  REMINDER
 // ============================================================
-function updateUI() {
-  // 定位状态
+function toggleRemind() {
+  S.remind=!S.remind;
+  if (S.remind&&S.selMode) {
+    if ('Notification' in window&&Notification.permission==='default') Notification.requestPermission();
+    if ('Notification' in window&&Notification.permission==='granted') {
+      const r=S.routes.find(x=>x.m===S.selMode);
+      if (r) new Notification('⏰ 出发提醒已设置',{body:`建议 ${depTime(S.arrival,S.buf,r.dur)} 出发`});
+    }
+    cd();
+  } else { S.cd=null; }
+  renderResults();
+}
+function cd() {
+  if (!S.remind||!S.selMode) return;
+  const r=S.routes.find(x=>x.m===S.selMode); if (!r) return;
+  const ds=depTime(S.arrival,S.buf,r.dur),n=new Date(),[h,m]=ds.split(':').map(Number);
+  const t=new Date();t.setHours(h,m,0,0);
+  if (t<=n){S.cd='⏰ 该出发了！';renderResults();return;}
+  S.cd=`还剩 ${Math.round((t-n)/60000)} 分钟出发`;renderResults();
+  setTimeout(cd,10000);
+}
+
+// ============================================================
+//  UI UPDATE
+// ============================================================
+function upd() {
   const badge=document.getElementById('loc-badge');
   if (badge) {
-    if (st.mapOk&&st.pos) {
+    if (S.mapOk&&S.from.length) {
       badge.innerHTML='<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full" style="animation:pulseRing 2s infinite"></span><span>已定位</span>';
       badge.className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 border border-emerald-200 text-emerald-600';
     }
   }
-  // 常用目的地高亮
-  SAVED_PLACES.forEach(p=>{
-    const el=document.getElementById('sav-'+p.addr);
+  SAVED.forEach(p=>{
+    const el=document.getElementById('sv-'+p.v);
     if (el) {
-      const active=st.destPos&&KNOWN[p.addr]&&st.destPos[0]===KNOWN[p.addr][0];
+      const active=S.toLngLat.length&&KNOWN[p.v]&&S.toLngLat[0]===KNOWN[p.v][0];
       el.className=active?'flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 border rounded-xl transition-all text-sm font-medium bg-indigo-50 border-indigo-300 text-indigo-700'
         :'flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 border rounded-xl transition-all text-sm font-medium bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50';
     }
@@ -366,53 +391,66 @@ function updateUI() {
 }
 
 // ============================================================
-//  INIT — 只渲染一次静态部分，然后绑定搜索
+//  INIT
 // ============================================================
 const app=document.getElementById('app');
 app.innerHTML=`
-  <header class="flex items-center justify-between mb-4">
-    <div class="flex items-center gap-2.5">
-      <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm"><span class="text-white text-lg">⏰</span></div>
-      <div><h1 class="text-lg font-bold">出发提醒</h1><p class="text-xs text-slate-400">高德地图 · 实时路线</p></div>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 border border-amber-200 text-amber-600" id="loc-badge">
-      <span class="w-1.5 h-1.5 bg-amber-500 rounded-full" style="animation:pulseRing 2s infinite"></span><span>定位中...</span>
-    </div>
-  </header>
-  <div class="mb-3"><p class="text-xs font-medium text-slate-400 mb-2">⭐ 常用目的地</p>
-    <div class="flex gap-2 overflow-x-auto scroll-hide">${
-      SAVED_PLACES.map(p=>`<button id="sav-${p.addr}" onclick="pickDest('${p.addr}')" class="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 border rounded-xl transition-all text-sm font-medium bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50">
-        <span class="text-base">${p.name.slice(0,2)}</span><span>${p.name.slice(2)}</span></button>`).join('')
-    }</div></div>
-  <div id="map-container" class="mb-3"></div>
-  <div class="relative mb-3" id="search-wrap">
-    <div class="relative">
-      <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg">🎯</span>
-      <input id="search-input" type="text" placeholder="输入目的地，如：望京、国贸..." value="${st.searchVal}"
-        class="glass w-full pl-11 pr-4 py-3 text-sm rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"/>
-      <button id="loc-btn" class="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-indigo-100 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-200 transition-all">📍定位</button>
-    </div>
-    <div id="suggestions" class="absolute z-20 mt-1 w-full glass border border-slate-200 rounded-xl overflow-hidden shadow-lg hidden"></div>
+<header class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-2.5">
+    <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm"><span class="text-white text-lg">⏰</span></div>
+    <div><h1 class="text-lg font-bold">出发提醒</h1><p class="text-xs text-slate-400">高德地图 · 实时路线</p></div>
   </div>
-  <div id="results"></div>
+  <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 border border-amber-200 text-amber-600" id="loc-badge">
+    <span class="w-1.5 h-1.5 bg-amber-500 rounded-full" style="animation:pulseRing 2s infinite"></span><span>定位中...</span>
+  </div>
+</header>
+
+<div class="mb-3"><p class="text-xs font-medium text-slate-400 mb-2">⭐ 常用目的地（点一下自动填到目的地）</p>
+  <div class="flex gap-2 overflow-x-auto scroll-hide">${
+    SAVED.map(p=>`<button id="sv-${p.v}" class="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 border rounded-xl transition-all text-sm font-medium bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50">
+      <span class="text-base">${p.n.slice(0,2)}</span><span>${p.n.slice(2)}</span></button>`).join('')
+  }</div></div>
+
+<div class="space-y-2 mb-3">
+  <div class="relative">
+    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">🟢</span>
+    <input id="from-input" type="text" placeholder="出发地（默认当前位置）" value="我的位置"
+      class="glass w-full pl-10 pr-3 py-2.5 text-sm rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"/>
+    <div id="from-sug" class="absolute z-20 mt-1 w-full glass border border-slate-200 rounded-xl overflow-hidden shadow-lg hidden"></div>
+  </div>
+  <div class="relative">
+    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">🔴</span>
+    <input id="to-input" type="text" placeholder="目的地，如：望京、国贸..."
+      class="glass w-full pl-10 pr-20 py-2.5 text-sm rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"/>
+    <button id="go-btn" class="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-indigo-500 text-white rounded-lg text-xs font-medium hover:bg-indigo-600 transition-all shadow-sm">🚀 规划</button>
+    <div id="to-sug" class="absolute z-20 mt-1 w-full glass border border-slate-200 rounded-xl overflow-hidden shadow-lg hidden"></div>
+  </div>
+</div>
+
+<div id="map-container" class="mb-3"></div>
+<div id="results"></div>
 `;
 
-// 渲染初始空状态
+// 绑定常用目的地
+SAVED.forEach(p=>{
+  document.getElementById('sv-'+p.v).onclick=function(){
+    const inp=document.getElementById('to-input');
+    if (inp) inp.value=p.v;
+    const fi=document.getElementById('from-input');
+    startSearch(fi.value||'我的位置', p.v);
+  };
+});
+
 renderResults();
-// 绑定搜索
 setupSearch();
 
 // 等AMap
-let chk=0;
-(function waitAMap(){
-  chk++;
+let c=0;
+(function w(){
+  c++;
   if (window.AMap) { initMap(); return; }
-  if (chk>50) {
-    document.getElementById('map-container').innerHTML=
-      '<div class="w-full h-full flex items-center justify-center text-sm text-slate-400">⚠️ 高德地图加载失败，请检查控制台</div>';
-    return;
-  }
-  setTimeout(waitAMap,100);
+  if (c>100) { document.getElementById('map-container').innerHTML='<div class="w-full h-full flex items-center justify-center text-sm text-slate-400">⚠️ 高德地图加载失败</div>'; return; }
+  setTimeout(w,100);
 })();
 </script>
 </body>
