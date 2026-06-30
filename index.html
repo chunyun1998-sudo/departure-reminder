@@ -7,7 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- 高德地图 JS API v2.0 -->
-  <!-- 如需安全密钥，请在下方 _AMapSecurityConfig 中配置 -->
+  <!-- 如果在 AMap 控制台设置了安全密钥，请取消下面注释并填入 -->
+  <!-- <script>window._AMapSecurityConfig={securityJsCode:'你的安全密钥'}</script> -->
   <script src="https://webapi.amap.com/maps?v=2.0&key=ee9c5479bba440e9f1aeb9390e47f9b9"></script>
 
   <style>
@@ -216,14 +217,6 @@ const state = {
 // ============================================================
 //  INIT: AMap
 // ============================================================
-function waitAMap(cb) {
-  if (window.AMap) { cb(); return; }
-  const check = () => {
-    if (window.AMap) cb();
-    else setTimeout(check, 100);
-  };
-  check();
-}
 
 function initMap() {
   state.map = new AMap.Map('map-container', {
@@ -252,6 +245,15 @@ function initMap() {
     state.mapReady = true;
     render();
   });
+
+  // 定位超时 fallback（10秒后如果还没定位成功，用默认位置）
+  setTimeout(() => {
+    if (!state.myPos) {
+      state.myPos = { lat: 39.9087, lng: 116.4715 };
+      state.mapReady = true;
+      render();
+    }
+  }, 12000);
 
   // 注册插件
   AMap.plugin(['AMap.AutoComplete', 'AMap.PlaceSearch', 'AMap.Walking',
@@ -778,11 +780,31 @@ document.addEventListener('click', (e) => {
 // ============================================================
 //  INIT
 // ============================================================
-waitAMap(() => {
-  initMap();
-  // 初始渲染
-  render();
-});
+
+// 先渲染 UI（不依赖高德），页面不会空白
+render();
+
+// 然后等待高德加载
+let amapCheckCount = 0;
+function checkAMap() {
+  amapCheckCount++;
+  if (window.AMap) {
+    initMap();
+    return;
+  }
+  if (amapCheckCount > 50) { // 约5秒后超时
+    // 高德加载失败，显示提示
+    const app = document.getElementById('app');
+    if (app) {
+      app.innerHTML += `<div class="fixed bottom-0 left-0 right-0 p-4 bg-amber-50 border-t border-amber-200 text-sm text-amber-700 text-center fade-in">
+        ⚠️ 高德地图加载超时，请检查 API Key 是否配置了<a href="https://console.amap.com/dev/key/app" target="_blank" class="underline font-medium">域名白名单</a>
+      </div>`;
+    }
+    return;
+  }
+  setTimeout(checkAMap, 100);
+}
+checkAMap();
 </script>
 </body>
 </html>
