@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>出发提醒 · Departure Reminder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 高德地图 JS API v2.0 -->
+  <!-- 如需安全密钥，请在下方 _AMapSecurityConfig 中配置 -->
+  <script src="https://webapi.amap.com/maps?v=2.0&key=ee9c5479bba440e9f1aeb9390e47f9b9"></script>
+
+  <style>
+    /* ================ Reset & Base ================ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      min-height: 100vh;
+      color: #1e293b;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ================ Glass Card ================ */
+    .glass {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(226,232,240,0.6);
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    /* ================ Transport Mode Card ================ */
+    .mode-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 8px;
+      border-radius: 14px;
+      border: 2px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transform: translateY(-1px);
+    }
+    .mode-card.selected {
+      border-color: #6366f1;
+      background: #eef2ff;
+      box-shadow: 0 4px 16px rgba(99,102,241,0.15);
+    }
+    .mode-card .check {
+      position: absolute;
+      top: -6px; right: -6px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 10px;
+      opacity: 0; transform: scale(0.5);
+      transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .mode-card.selected .check { opacity: 1; transform: scale(1); }
+
+    /* ================ Map ================ */
+    #map-container {
+      width: 100%;
+      height: 320px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+    @media (max-width: 640px) {
+      #map-container { height: 260px; }
+    }
+
+    /* amap 覆盖物层级调整 */
+    .amap-marker-label { border: none; padding: 0; background: none; box-shadow: none; }
+
+    /* ================ Slider ================ */
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px;
+      background: #e2e8f0; border-radius: 3px;
+      outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      background: #6366f1; border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(99,102,241,0.3);
+      transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px;
+      background: #6366f1; border-radius: 50%;
+      border: none; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(99,102,241,0.3);
+    }
+
+    /* ================ Select ================ */
+    select {
+      width: 100%; padding: 10px 14px;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 12px; font-size: 14px; font-weight: 600;
+      color: #334155; outline: none; transition: all 0.2s;
+    }
+    select:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(129,140,248,0.15);
+    }
+
+    /* A* input override */
+    .amap-lib-autocomplete { border: none !important; box-shadow: none !important; }
+
+    /* ================ Animations ================ */
+    @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes pulseRing {
+      0% { box-shadow:0 0 0 0 rgba(99,102,241,0.35); }
+      70% { box-shadow:0 0 0 14px rgba(99,102,241,0); }
+      100% { box-shadow:0 0 0 0 rgba(99,102,241,0); }
+    }
+    .slide-up { animation: slideUp 0.45s ease-out both; }
+    .fade-in  { animation: fadeIn 0.3s ease-out both; }
+    .spin     { animation: spin 0.7s linear infinite; }
+    .pulse-ring { animation: pulseRing 2s infinite; }
+    .stagger > * { animation: slideUp 0.4s ease-out both; }
+    .stagger > *:nth-child(1) { animation-delay:0.02s; }
+    .stagger > *:nth-child(2) { animation-delay:0.06s; }
+    .stagger > *:nth-child(3) { animation-delay:0.10s; }
+    .stagger > *:nth-child(4) { animation-delay:0.14s; }
+    .stagger > *:nth-child(5) { animation-delay:0.18s; }
+  </style>
+</head>
+<body>
+<div id="app" class="max-w-lg mx-auto px-4 py-6 pb-28"></div>
+
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const TRANSPORT = {
+  walking:  { label:'步行', icon:'🚶', color:'#10b981', bg:'bg-emerald-50', text:'text-emerald-700', desc:'健康环保，适合短途' },
+  cycling:  { label:'骑行', icon:'🚲', color:'#f59e0b', bg:'bg-amber-50',  text:'text-amber-700',  desc:'灵活便捷，中短途优选' },
+  transit:  { label:'公交地铁', icon:'🚇', color:'#3b82f6', bg:'bg-blue-50',   text:'text-blue-700',   desc:'经济实惠，适合通勤' },
+  driving:  { label:'驾车',   icon:'🚗', color:'#8b5cf6', bg:'bg-purple-50', text:'text-purple-700', desc:'灵活快捷（含油费）' },
+  taxi:     { label:'打车',   icon:'🚕', color:'#ef4444', bg:'bg-red-50',    text:'text-red-700',    desc:'省心省力，即刻出发' },
+};
+const MODE_ORDER = ['walking','cycling','transit','driving','taxi'];
+
+const SAVED_PLACES = [
+  { id:'1', name:'🏠 家',         addr:'望京' },
+  { id:'2', name:'🏢 公司',       addr:'国贸' },
+  { id:'3', name:'🎒 学校',       addr:'中关村' },
+  { id:'4', name:'🏛️ 天安门',     addr:'天安门' },
+  { id:'5', name:'🛍️ 西单',       addr:'西单' },
+];
+
+// 常用地址的经纬度（若POI搜不到则 fallback 使用）
+const KNOWN_LOCS = {
+  '望京':   { lat:39.9925, lng:116.4774 },
+  '中关村': { lat:39.9814, lng:116.3103 },
+  '西单':   { lat:39.9087, lng:116.3746 },
+  '天安门': { lat:39.9054, lng:116.3976 },
+  '国贸':   { lat:39.9087, lng:116.4605 },
+};
+
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  // AMap
+  map: null,
+  mapReady: false,
+  // location
+  myPos: null,          // {lat, lng}
+  // destination
+  dest: null,           // {lat, lng, name, address}
+  destPos: null,        // [lng, lat] for AMap
+  // time
+  arrivalTime: (()=>{const d=new Date();return `${String((d.getHours()+1)%24).padStart(2,'0')}:00`})(),
+  buffer: 10,
+  // routes
+  routes: [],           // [{mode, dur, dist, cost, detail, traffic, path}]
+  selMode: null,
+  calculating: false,
+  hasSearched: false,
+  // reminder
+  reminder: false,
+  countdown: null,
+  // AMap overlays
+  markers: [],
+  polylines: [],
+  // search
+  autoComplete: null,
+  placeSearch: null,
+  showSuggest: false,
+  inputVal: '',
+  suggestResults: [],
+};
+
+// ============================================================
+//  INIT: AMap
+// ============================================================
+function waitAMap(cb) {
+  if (window.AMap) { cb(); return; }
+  const check = () => {
+    if (window.AMap) cb();
+    else setTimeout(check, 100);
+  };
+  check();
+}
+
+function initMap() {
+  state.map = new AMap.Map('map-container', {
+    zoom: 13,
+    center: [116.397428, 39.90923], // 默认北京天安门
+    mapStyle: 'amap://styles/light', // 浅色主题
+    layers: [new AMap.TileLayer()],
+    features: ['bg', 'road', 'building', 'point'],
+  });
+
+  // 定位
+  const geolocation = new AMap.Geolocation({
+    enableHighAccuracy: true,
+    timeout: 10000,
+    zoomToAccuracy: true,
+  });
+  state.map.addControl(geolocation);
+  geolocation.getCurrentPosition((status, result) => {
+    if (status === 'complete' && result.position) {
+      state.myPos = { lat: result.position.lat, lng: result.position.lng };
+      state.map.setCenter([result.position.lng, result.position.lat]);
+    } else {
+      // fallback: 国贸附近
+      state.myPos = { lat: 39.9087, lng: 116.4715 };
+    }
+    state.mapReady = true;
+    render();
+  });
+
+  // 注册插件
+  AMap.plugin(['AMap.AutoComplete', 'AMap.PlaceSearch', 'AMap.Walking',
+    'AMap.Riding', 'AMap.Driving', 'AMap.Transfer'], () => {
+    state.autoComplete = new AMap.AutoComplete({ city: '北京' });
+    state.placeSearch = new AMap.PlaceSearch({ city: '北京', pageSize: 10 });
+  });
+}
+
+// ============================================================
+//  ROUTE CALCULATION (Real AMap API)
+// ============================================================
+function calcAllRoutes() {
+  if (!state.myPos || !state.destPos) return;
+  state.calculating = true;
+  state.hasSearched = true;
+  state.routes = [];
+  state.selMode = null;
+  render();
+
+  const start = [state.myPos.lng, state.myPos.lat];
+  const end = state.destPos;
+  const results = [];
+  let completed = 0;
+  const total = 5;
+
+  function onDone() {
+    completed++;
+    if (completed >= total) {
+      results.sort((a,b) => a.dur - b.dur);
+      state.routes = results;
+      state.selMode = results.length ? results[0].mode : null;
+      state.calculating = false;
+      render();
+      drawSelectedRoute();
+    }
+  }
+
+  // ---- 1. Walking ----
+  try {
+    const walk = new AMap.Walking({ policy: AMap.WalkingPolicy.LEAST_TIME });
+    walk.search(start, end, (s, r) => {
+      if (s === 'complete' && r.routes?.length) {
+        const route = r.routes[0];
+        const path = route.steps.flatMap(st => st.path);
+        results.push({ mode:'walking', dur:Math.round(route.time/60), dist:route.distance, path,
+          detail:`步行 ${(route.distance/1000).toFixed(1)} 公里`, cost:0, traffic:'✅ 步行不受交通影响' });
+      }
+      onDone();
+    });
+  } catch(e) { onDone(); }
+
+  // ---- 2. Cycling ----
+  try {
+    const ride = new AMap.Riding({ policy: AMap.RidingPolicy.LEAST_TIME });
+    ride.search(start, end, (s, r) => {
+      if (s === 'complete' && r.routes?.length) {
+        const route = r.routes[0];
+        const path = route.steps.flatMap(st => st.path);
+        results.push({ mode:'cycling', dur:Math.round(route.time/60), dist:route.distance, path,
+          detail:`骑行 ${(route.distance/1000).toFixed(1)} 公里`, cost:0, traffic:'✅ 骑行不受交通影响' });
+      }
+      onDone();
+    });
+  } catch(e) { onDone(); }
+
+  // ---- 3. Transit ----
+  try {
+    const transfer = new AMap.Transfer({
+      policy: AMap.TransferPolicy.LEAST_TIME,
+      city: '北京', cityd: '北京',
+    });
+    transfer.search(start, end, (s, r) => {
+      if (s === 'complete' && r.plans?.length) {
+        const plan = r.plans[0];
+        // 合并所有 segment 的路径
+        const path = [];
+        plan.segments.forEach(seg => {
+          if (seg.transit?.path) path.push(...seg.transit.path);
+          if (seg.walking?.path) path.push(...seg.walking.path);
+        });
+        const transitInfo = plan.segments.filter(s => s.transit).map(s =>
+          s.transit.buslines?.map(b => b.name).join('/')
+        ).filter(Boolean).join('→') || '公交/地铁';
+        results.push({ mode:'transit', dur:Math.round(plan.time/60), dist:plan.distance, path,
+          detail:`${transitInfo}，约${(plan.distance/1000).toFixed(1)}km`, cost:0,
+          traffic: `🚇 ${plan.segments.length} 段行程` });
+      }
+      onDone();
+    });
+  } catch(e) { onDone(); }
+
+  // ---- 4. Driving ----
+  try {
+    const drive = new AMap.Driving({
+      policy: AMap.DrivingPolicy.LEAST_TIME,
+      extensions: 'all',
+    });
+    drive.search(start, end, (s, r) => {
+      if (s === 'complete' && r.routes?.length) {
+        const route = r.routes[0];
+        const path = route.steps.flatMap(st => st.path);
+        const tmc = route.tolls ? `¥${Math.round(route.tolls)}` : '免费';
+        const trafficTxt = route.traffic?.length
+          ? `🚦 ${Math.round(route.traffic.reduce((a,b)=>a+b,0)/route.traffic.length*100)}%畅通`
+          : '✅ 路况正常';
+        results.push({ mode:'driving', dur:Math.round(route.time/60), dist:route.distance, path,
+          detail:`驾车 ${(route.distance/1000).toFixed(1)}km ${tmc}`, cost:Math.round(route.tolls||0),
+          traffic: trafficTxt });
+      }
+      onDone();
+    });
+  } catch(e) { onDone(); }
+
+  // ---- 5. Taxi (use driving result + cost estimate) ----
+  try {
+    const taxi = new AMap.Driving({ policy: AMap.DrivingPolicy.LEAST_TIME });
+    taxi.search(start, end, (s, r) => {
+      if (s === 'complete' && r.routes?.length) {
+        const route = r.routes[0];
+        const path = route.steps.flatMap(st => st.path);
+        const cost = Math.round(route.distance/1000*2.5 + 14);
+        results.push({ mode:'taxi', dur:Math.round(route.time/60), dist:route.distance, path,
+          detail:`打车 ${(route.distance/1000).toFixed(1)}km 预估¥${cost}`, cost,
+          traffic:'🚕 即时叫车，高峰加价' });
+      }
+      onDone();
+    });
+  } catch(e) { onDone(); }
+}
+
+// ============================================================
+//  MAP OPERATIONS
+// ============================================================
+function clearOverlays() {
+  if (state.markers.length) { state.map.remove(state.markers); state.markers = []; }
+  if (state.polylines.length) { state.map.remove(state.polylines); state.polylines = []; }
+}
+
+function drawSelectedRoute() {
+  if (!state.map || !state.myPos) return;
+  clearOverlays();
+
+  // 起点标记
+  const startM = new AMap.Marker({
+    position: [state.myPos.lng, state.myPos.lat],
+    content: `<div style="background:#6366f1;color:#fff;width:28px;height:28px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;
+      border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2)">起</div>`,
+    offset: new AMap.Pixel(-14, -14),
+  });
+  state.markers.push(startM);
+  state.map.add(startM);
+
+  // 终点标记
+  if (state.destPos) {
+    const endM = new AMap.Marker({
+      position: state.destPos,
+      content: `<div style="background:#ef4444;color:#fff;width:28px;height:28px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;
+        border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.2)">终</div>`,
+      offset: new AMap.Pixel(-14, -14),
+    });
+    state.markers.push(endM);
+    state.map.add(endM);
+  }
+
+  // 选中路线
+  const route = state.routes.find(r => r.mode === state.selMode);
+  if (route?.path?.length) {
+    const info = TRANSPORT[route.mode];
+    const polyline = new AMap.Polyline({
+      path: route.path,
+      strokeColor: info.color,
+      strokeWeight: 5,
+      strokeOpacity: 0.9,
+      lineJoin: 'round',
+      lineCap: 'round',
+    });
+    state.polylines.push(polyline);
+    state.map.add(polyline);
+
+    // 自适应缩放
+    state.map.setFitView(state.markers.concat(state.polylines), false, [50,50,50,50]);
+  } else if (state.markers.length >= 2) {
+    state.map.setFitView(state.markers, false, [50,50,50,50]);
+  }
+}
+
+// ============================================================
+//  DESTINATION SEARCH
+// ============================================================
+function searchDestination(keyword) {
+  if (!state.placeSearch) return;
+  // 先尝试查询已存储的坐标
+  const known = Object.entries(KNOWN_LOCS).find(([k]) => keyword.includes(k) || k.includes(keyword));
+  if (known) {
+    const [name, loc] = known;
+    state.dest = { name, address: `${name}（附近）` };
+    state.destPos = [loc.lng, loc.lat];
+    calcAllRoutes();
+    return;
+  }
+
+  state.placeSearch.search(keyword, (s, r) => {
+    if (s === 'complete' && r.poiList?.pois?.length) {
+      const poi = r.poiList.pois[0];
+      state.dest = { name: poi.name, address: poi.address || poi.name };
+      state.destPos = [poi.location.lng, poi.location.lat];
+    } else {
+      // fallback
+      state.dest = { name: keyword, address: keyword };
+      state.destPos = [116.397428, 39.90923];
+    }
+    calcAllRoutes();
+  });
+}
+
+// ============================================================
+//  TIME HELPERS
+// ============================================================
+function calcDepartureTime(arrival, buf, dur) {
+  const [ah, am] = arrival.split(':').map(Number);
+  const total = ah*60 + am - buf - dur;
+  const h = ((total % 1440) + 1440) % 1440;
+  return `${String(Math.floor(h/60)).padStart(2,'0')}:${String(h%60).padStart(2,'0')}`;
+}
+
+function isTimePassed(t) {
+  const now = new Date();
+  const [h,m] = t.split(':').map(Number);
+  return now.getHours()*60+now.getMinutes() > h*60+m;
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function render() {
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  // ── Header ──
+  let h = `
+  <header class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+        <span class="text-white text-lg">⏰</span></div>
+      <div><h1 class="text-lg font-bold">出发提醒</h1>
+      <p class="text-xs text-slate-400">高德地图 · 实时路线</p></div>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+      ${state.mapReady && state.myPos ? 'bg-emerald-50 border border-emerald-200 text-emerald-600' :
+        'bg-amber-50 border border-amber-200 text-amber-600'}">
+      <span class="w-1.5 h-1.5 rounded-full ${state.mapReady && state.myPos ? 'bg-emerald-500' : 'bg-amber-500'}"
+        style="animation:pulseRing 2s infinite"></span>
+      <span>${state.mapReady && state.myPos ? '已定位' : '定位中...'}</span>
+    </div>
+  </header>`;
+
+  // ── Saved Places ──
+  h += `<div class="mb-3"><p class="text-xs font-medium text-slate-400 mb-2">⭐ 常用目的地</p>
+    <div class="flex gap-2 overflow-x-auto scroll-hide">`;
+  SAVED_PLACES.forEach(p => {
+    const active = state.dest?.name === p.addr || state.dest?.name?.includes(p.addr);
+    h += `<button onclick="onPickDest('${p.addr}')"
+      class="flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 border rounded-xl transition-all text-sm font-medium
+        ${active ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}">
+      <span class="text-base">${p.name.slice(0,2)}</span><span>${p.name.slice(2)}</span></button>`;
+  });
+  h += `</div></div>`;
+
+  // ── Map ──
+  h += `<div id="map-container" class="mb-3"></div>`;
+
+  // ── Search ──
+  h += `<div class="relative mb-3" id="search-wrap">
+    <div class="relative">
+      <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg">🎯</span>
+      <input id="search-input" type="text" value="${state.inputVal}"
+        placeholder="输入目的地，如：望京、国贸..."
+        oninput="onInput(this.value)" onfocus="onFocus()"
+        class="glass w-full pl-11 pr-4 py-3 text-sm rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"/>
+    </div>`;
+
+  if (state.showSuggest && state.suggestResults.length) {
+    h += `<div class="absolute z-20 mt-1 w-full glass border border-slate-200 rounded-xl overflow-hidden shadow-lg fade-in">
+      <div class="max-h-48 overflow-y-auto">`;
+    state.suggestResults.forEach(item => {
+      h += `<button onclick="onPickResult('${item.name.replace(/'/g,"\\'")}','${(item.address||item.name).replace(/'/g,"\\'")}')"
+        class="w-full text-left px-4 py-3 flex items-center gap-3 text-sm hover:bg-slate-50 text-slate-700 border-b border-slate-100 last:border-0">
+        <span>📍</span>
+        <div><span class="font-medium">${item.name}</span>
+        ${item.address ? `<span class="text-slate-400 text-xs ml-1">${item.address}</span>` : ''}</div>
+      </button>`;
+    });
+    h += `</div></div>`;
+  }
+  h += `</div>`;
+
+  // ── Time Settings ──
+  if (state.hasSearched) {
+    const timeOpts = [];
+    for (let i=0;i<48;i++) {
+      const hh=Math.floor(i/2), mm=i%2===0?'00':'30';
+      timeOpts.push(`${String(hh).padStart(2,'0')}:${mm}`);
+    }
+    h += `<div class="grid grid-cols-2 gap-3 mb-3 slide-up">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">⏰ 期望到达</label>
+        <select onchange="state.arrivalTime=this.value;render()">`;
+    timeOpts.forEach(t => {
+      h += `<option value="${t}" ${t===state.arrivalTime?'selected':''}>${t}</option>`;
+    });
+    h += `</select></div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1.5">⏱ 提前到达</label>
+        <div class="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          <input type="range" min="0" max="30" step="5" value="${state.buffer}"
+            oninput="state.buffer=+this.value;document.getElementById('buf-label').textContent=this.value>0?this.value+'分':'准时';render()"
+            style="flex:1"/>
+          <span id="buf-label" class="text-sm font-semibold text-slate-700 min-w-[3rem] text-right tabular-nums">
+            ${state.buffer>0?state.buffer+'分':'准时'}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Loading ──
+  if (state.calculating) {
+    h += `<div class="glass p-8 flex flex-col items-center gap-3 fade-in">
+      <div class="w-9 h-9 border-[3px] border-indigo-500 border-t-transparent rounded-full spin"></div>
+      <p class="text-sm text-slate-400">正在调用高德地图计算路线...</p>
+    </div>`;
+  }
+
+  // ── Routes ──
+  if (state.hasSearched && !state.calculating && state.routes.length) {
+    h += `<div class="mb-3 slide-up">
+      <div class="flex items-center gap-2 mb-2.5">
+        <h2 class="text-sm font-semibold text-slate-700">交通方式对比</h2>
+        <span class="text-[10px] px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full font-medium">按时间排序</span>
+      </div>
+      <div class="grid grid-cols-5 gap-1.5 stagger">`;
+    state.routes.forEach(r => {
+      const t = TRANSPORT[r.mode];
+      const sel = state.selMode === r.mode;
+      h += `<button onclick="onSelectMode('${r.mode}')"
+        class="mode-card ${sel?'selected':''}"
+        style="${sel?`border-color:${t.color};background:${t.color}10`:''}">
+        <span class="check" style="background:${t.color}">✓</span>
+        <span class="text-2xl">${t.icon}</span>
+        <span class="text-[11px] font-bold text-slate-800 tabular-nums">
+          ${r.dur}<span class="text-[9px] font-normal text-slate-400">分钟</span></span>
+        <span class="text-[10px] text-slate-400">${t.label}</span>
+      </button>`;
+    });
+    h += `</div></div>`;
+
+    // detail + departure time
+    const selR = state.routes.find(r=>r.mode===state.selMode);
+    if (selR) {
+      const t = TRANSPORT[selR.mode];
+      const depStr = calcDepartureTime(state.arrivalTime, state.buffer, selR.dur);
+      const late = isTimePassed(depStr);
+
+      h += `<div class="mb-3 p-3.5 rounded-xl border bg-white fade-in" style="border-color:${t.color}40">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">${t.icon}</span>
+            <span class="font-semibold text-slate-800">${t.label}</span>
+          </div>
+          <span class="text-sm text-slate-500">${selR.detail}</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">${selR.traffic||''}</p>
+      </div>`;
+
+      h += `<div class="glass p-5 text-center border-2 slide-up ${late?'border-red-300 bg-red-50/50':'border-indigo-300 bg-indigo-50/50'}">`;
+      if (late) {
+        h += `<div class="text-3xl mb-2">😱</div>
+          <p class="text-lg font-bold text-red-600">您已迟到！</p>
+          <p class="text-sm text-red-500 mt-1">建议 ${depStr} 出发，已超过该时间，尽快出发</p>`;
+      } else {
+        h += `<p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">建议出发时间</p>
+          <div class="flex items-center justify-center gap-3 mb-2">
+            <div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold pulse-ring"
+              style="background:rgba(99,102,241,0.1);color:#4338ca">
+              <span class="text-2xl">⏰</span>
+              <span class="text-3xl tabular-nums tracking-tight">${depStr}</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-center gap-4 text-sm text-slate-500 mb-3">
+            <span>${t.icon} ${selR.dur}分钟</span>
+            <span>⏱ ${state.buffer>0?'提前'+state.buffer+'分钟':'准时'}到</span>
+          </div>`;
+        if (state.countdown) h += `<p class="text-sm font-medium text-indigo-600 mb-2">${state.countdown}</p>`;
+        h += `<button onclick="toggleRemind()"
+          class="px-6 py-2.5 rounded-xl font-medium text-sm transition-all
+            ${state.reminder
+              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+              : 'bg-indigo-500 text-white hover:bg-indigo-600 shadow-sm hover:shadow-md'}">
+          ${state.reminder ? '🔕 取消提醒' : '🔔 设置出发提醒'}
+        </button>`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  // ── Empty state ──
+  if (!state.hasSearched && !state.calculating) {
+    h += `<div class="glass p-8 text-center fade-in">
+      <div class="text-5xl mb-4">🗺️</div>
+      <h2 class="text-lg font-semibold text-slate-700 mb-2">选择目的地开始规划</h2>
+      <p class="text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
+        输入目的地或从常用地点中选择<br/>高德地图将实时计算各交通方式的路线
+      </p>
+      <div class="mt-4 flex justify-center gap-3 opacity-40">
+        ${['🚶','🚲','🚇','🚗','🚕'].map(i=>`<span class="text-2xl">${i}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  app.innerHTML = h;
+}
+
+// ============================================================
+//  ACTIONS
+// ============================================================
+function onInput(val) {
+  state.inputVal = val;
+  state.showSuggest = true;
+  if (!val.trim()) { state.suggestResults = []; render(); return; }
+
+  // 使用 AMap AutoComplete
+  if (state.autoComplete) {
+    state.autoComplete.search(val, (s, r) => {
+      if (s === 'complete' && r.tips?.length) {
+        state.suggestResults = r.tips.slice(0, 8);
+      } else {
+        // fallback 到已知地点
+        state.suggestResults = Object.keys(KNOWN_LOCS)
+          .filter(k => k.includes(val))
+          .map(k => ({ name: k, address: '北京市' }));
+      }
+      render();
+    });
+  } else {
+    state.suggestResults = Object.keys(KNOWN_LOCS)
+      .filter(k => k.includes(val))
+      .map(k => ({ name: k, address: '北京市' }));
+    render();
+  }
+}
+
+function onFocus() {
+  if (state.inputVal) onInput(state.inputVal);
+  else { state.showSuggest = true; render(); }
+}
+
+function onPickResult(name, address) {
+  state.inputVal = name;
+  state.showSuggest = false;
+  state.dest = { name, address };
+  searchDestination(name);
+}
+
+function onPickDest(name) {
+  state.inputVal = name;
+  state.dest = { name, address: name };
+  state.showSuggest = false;
+  searchDestination(name);
+}
+
+function onSelectMode(mode) {
+  state.selMode = mode;
+  render();
+  drawSelectedRoute();
+}
+
+function toggleRemind() {
+  state.reminder = !state.reminder;
+  if (state.reminder && state.selMode) {
+    if ('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+    if ('Notification' in window && Notification.permission==='granted') {
+      const selR = state.routes.find(r=>r.mode===state.selMode);
+      if (selR) {
+        const depStr = calcDepartureTime(state.arrivalTime, state.buffer, selR.dur);
+        new Notification('⏰ 出发提醒已设置', {
+          body: `建议 ${depStr} 出发，${TRANSPORT[selR.mode].icon} ${selR.dur}分钟到达`,
+          icon: 'https://img.icons8.com/color/96/alarm-clock.png',
+        });
+      }
+    }
+    updateCountdown();
+  } else {
+    state.countdown = null;
+  }
+  render();
+}
+
+function updateCountdown() {
+  if (!state.reminder || !state.selMode) return;
+  const selR = state.routes.find(r=>r.mode===state.selMode);
+  if (!selR) return;
+  const depStr = calcDepartureTime(state.arrivalTime, state.buffer, selR.dur);
+  const now = new Date();
+  const [h,m] = depStr.split(':').map(Number);
+  const t = new Date(); t.setHours(h,m,0,0);
+  if (t <= now) { state.countdown = '⏰ 该出发了！'; render(); return; }
+  const diff = Math.round((t-now)/60000);
+  state.countdown = `还剩 ${diff} 分钟出发`;
+  render();
+  setTimeout(updateCountdown, 10000);
+}
+
+// ── Click outside to close suggestions ──
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('search-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    state.showSuggest = false;
+    render();
+  }
+});
+
+// ============================================================
+//  INIT
+// ============================================================
+waitAMap(() => {
+  initMap();
+  // 初始渲染
+  render();
+});
+</script>
+</body>
+</html>
