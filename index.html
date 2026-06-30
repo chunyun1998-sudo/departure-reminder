@@ -106,7 +106,15 @@ function doLoc() {
       S.from=[p.coords.latitude,p.coords.longitude];
       S.fromLngLat=[p.coords.longitude,p.coords.latitude];
       S.map.setCenter(S.fromLngLat);
-      S.mapOk=true; upd();
+      S.mapOk=true; upd(); drawRoute();
+      // 更新出发地输入框显示地址
+      const fi=document.getElementById('from-input');
+      if (fi && fi.value==='我的位置') {
+        // 反向地理编码
+        new AMap.Geocoder({city:'北京'}).getAddress(S.fromLngLat,(s,r)=>{
+          if (s==='complete') fi.placeholder=r.regeocode?.formattedAddress||'我的位置';
+        });
+      }
     },()=>{ fallbackLoc(); },{timeout:8000,enableHighAccuracy:false});
   } else { fallbackLoc(); }
   setTimeout(()=>{ if (!S.mapOk) fallbackLoc(); }, 10000);
@@ -115,7 +123,7 @@ function doLoc() {
 function fallbackLoc() {
   if (S.mapOk) return;
   S.from=[39.9087,116.4715]; S.fromLngLat=[116.4715,39.9087];
-  S.mapOk=true; upd();
+  S.mapOk=true; upd(); drawRoute();
 }
 
 function drawRoute() {
@@ -202,9 +210,9 @@ function geocodeAddr(keyword, cb) {
 function startSearch(fromKw, toKw) {
   geocodeAddr(fromKw, floc => {
     S.fromLngLat=floc;
-    let fromAddr=fromKw;
-    if (fromKw==='我的位置'&&S.from.length) fromAddr='我的位置';
-    S.fromName=fromAddr;
+    S.from=[floc[1],floc[0]];
+    S.fromName=fromKw||'我的位置';
+    drawRoute();
     geocodeAddr(toKw, tloc => {
       S.toLngLat=tloc;
       S.toName=toKw;
@@ -325,7 +333,17 @@ function setupSearch() {
     inp.onfocus=function(){if(this.value.trim())this.oninput();};
   }
 
-  bindInput(fi, fs, (v)=>{fi.value=v; if(S.toName) startSearch(v,S.toName);});
+  bindInput(fi, fs, (v)=>{
+    fi.value=v;
+    S.fromName=v;
+    // 重新定位出发地
+    geocodeAddr(v, loc => {
+      S.fromLngLat=loc;
+      S.from=[loc[1],loc[0]];
+      drawRoute();
+      if (S.toName) calcRoutes();
+    });
+  });
   bindInput(ti, ts, (v)=>{ti.value=v; if(S.fromLngLat.length) startSearch(fi.value||'我的位置',v);});
 
   // 搜索按钮
